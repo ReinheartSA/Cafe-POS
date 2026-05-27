@@ -58,7 +58,7 @@ export default function POSPage() {
   };
 
   // STEP 4: Fungsi untuk mengubah jumlah item (+1 atau -1)
-  const updateQuantity = (id: string, delta: number) => {
+  const updateQuantity = (id: string | number, delta: number) => {
     setCart((prevCart) =>
       prevCart
         .map((item) => {
@@ -98,7 +98,8 @@ export default function POSPage() {
         .single(); // Ambil satu baris saja
 
       if (orderError || !orderData) {
-        throw new Error('Gagal membuat ID Pesanan');
+        console.error("Order Insert Error:", orderError);
+        throw new Error(orderError?.message || 'Gagal membuat ID Pesanan');
       }
 
       // 2. Siapkan format data untuk tabel 'order_items'
@@ -114,7 +115,8 @@ export default function POSPage() {
         .insert(itemsToInsert);
 
       if (itemsError) {
-        throw new Error('Gagal menyimpan detail menu pesanan');
+        console.error("Items Insert Error:", itemsError);
+        throw new Error(itemsError.message || 'Gagal menyimpan detail menu pesanan');
       }
 
       // 4. Jika semua sukses, bersihkan keranjang dan beri notifikasi
