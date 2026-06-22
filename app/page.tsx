@@ -7,7 +7,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="font-black text-2xl tracking-tighter text-slate-900">
-            CAFE<span className="text-slate-500">POS</span>
+            OZEIS<span className="text-slate-500">Cafe</span>
           </div>
           <nav className="flex items-center space-x-8 text-sm font-semibold text-slate-600">
             <a href="#our-cafe" className="hover:text-slate-900 transition-colors">Our Cafe</a>
@@ -24,7 +24,7 @@ export default function LandingPage() {
             Experience the Minimalist <br /> Coffee Culture
           </h1>
           <p className="text-lg text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Welcome to CAFE POS, a place where simplicity meets extraordinary taste. 
+            Welcome to OZEIS Cafe, a place where simplicity meets extraordinary taste. 
             Enjoy our carefully curated coffee beans and calm atmosphere. Order from your table 
             easily through our modern POS system, straight to our kitchen.
           </p>
@@ -72,11 +72,9 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
             {/* Map Frame */}
             <div className="rounded-lg overflow-hidden border border-slate-200 shadow-inner h-80 bg-slate-100">
-              <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126907.08630048121!2d106.759477!3d-6.229728!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x100c5e82dd4b820!2sJakarta%2C%20Daerah%20Khusus%20Ibukota%20Jakarta!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid" 
-                width="100%" 
-                height="100%" 
-                style={{ border: 0 }} 
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3973.373703957442!2d119.46772987583194!3d-5.203819494773797!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dbee3001a14c5e9%3A0xec1bbca57fd1c7c1!2sOZEIS%20CAFE!5e0!3m2!1sid!2sid!4v1782127645312!5m2!1sid!2sid" 
+                width="600" height="450" style={{ border: 0 }} 
                 allowFullScreen={true} 
                 loading="lazy" 
                 referrerPolicy="no-referrer-when-downgrade"
@@ -86,10 +84,10 @@ export default function LandingPage() {
             {/* Address & Actions */}
             <div className="flex flex-col space-y-6">
               <div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">Jakarta, Indonesia</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Sulawesi Selatan, Indonesia</h3>
                 <p className="text-slate-600 leading-relaxed">
-                  Jl. Sudirman No. 123, Central Jakarta<br />
-                  DKI Jakarta, 10220
+                  Ruko Flavour Walk, Citra Garden, Blk. D15 No.D12, Paccinongang, Kec. Somba Opu<br />
+                 Kabupaten Gowa, Sulawesi Selatan 92113
                 </p>
               </div>
               
@@ -103,7 +101,7 @@ export default function LandingPage() {
 
               <div className="pt-4 flex flex-col sm:flex-row gap-4">
                 <a 
-                  href="https://maps.google.com/?q=Jakarta" 
+                  href="https://maps.app.goo.gl/1J42BCWDamEbf6mn6" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="px-6 py-3 bg-blue-600 text-white rounded-md font-bold text-center hover:bg-blue-700 transition-colors shadow-sm flex-1"
@@ -127,7 +125,7 @@ export default function LandingPage() {
       {/* FOOTER */}
       <footer className="bg-slate-900 border-t border-slate-800 py-12 text-center text-slate-400">
         <div className="max-w-7xl mx-auto px-6">
-          <p className="mb-4 text-xl font-bold text-white tracking-tighter">CAFE<span className="text-slate-500">POS</span></p>
+          <p className="mb-4 text-xl font-bold text-white tracking-tighter">OZEIS<span className="text-slate-500">Cafe</span></p>
           <p className="text-sm">© {new Date().getFullYear()} Cafe POS System. Minimalist & Fast.</p>
         </div>
       </footer>
