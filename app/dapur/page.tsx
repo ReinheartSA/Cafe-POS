@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -22,6 +22,98 @@ type Order = {
 };
 
 export default function KitchenDashboardPage() {
+  const [session, setSession] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<{ nama: string; role: string } | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  // States untuk form login
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    // 1. Cek sesi saat komponen dimuat
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) fetchProfile(session.user.id);
+      else setAuthChecking(false);
+    });
+
+    // 2. Berlangganan perubahan status login
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) fetchProfile(session.user.id);
+      else {
+        setUserProfile(null);
+        setAuthChecking(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('karyawan')
+      .select('nama, role')
+      .eq('id', userId)
+      .single();
+      
+    if (data) setUserProfile(data);
+    setAuthChecking(false);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert('Login gagal: ' + error.message);
+    setIsLoggingIn(false);
+  };
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (authChecking) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-500 font-bold">Memeriksa Akses Autentikasi...</div>;
+  }
+
+  // Jika belum login, tampilkan laman login
+  if (!session) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 font-sans">
+        <div className="max-w-sm w-full bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+          <h1 className="text-2xl font-black text-slate-900 mb-1 text-center tracking-tight">Akses Internal Kafe</h1>
+          <p className="text-slate-500 mb-6 text-sm text-center">Login sebagai Manager atau Karyawan</p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="nama@kafe.com" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
+              <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
+            </div>
+            <button type="submit" disabled={isLoggingIn} className="w-full bg-slate-900 text-white font-bold py-3 mt-2 rounded-md hover:bg-slate-800 disabled:opacity-50 transition-colors">
+              {isLoggingIn ? 'Memproses...' : 'Masuk Dashboard'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Jika sudah login, render komponen dashboard
+  return <DashboardContent userProfile={userProfile} onLogout={handleLogout} />;
+}
+
+// -------------------------------------------------------------
+// KOMPONEN DASHBOARD UTAMA (HANYA DITAMPILKAN JIKA AUTH SUKSES)
+// -------------------------------------------------------------
+function DashboardContent({ userProfile, onLogout }: { userProfile: any, onLogout: () => void }) {
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Fungsi untuk mengupdate status pesanan
@@ -67,7 +159,6 @@ export default function KitchenDashboardPage() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
         (payload) => {
-          // Ketika ada pesanan baru, ambil ulang dari database agar join order_items terbawa
           fetchOrders();
         }
       )
@@ -76,11 +167,9 @@ export default function KitchenDashboardPage() {
         { event: 'UPDATE', schema: 'public', table: 'orders' },
         (payload) => {
           const updatedOrder = payload.new as Order;
-          // Periksa apakah status menjadi paid, jika iya, hilangkan dari daftar
           if (updatedOrder.status === 'paid') {
             setOrders((prev) => prev.filter((order) => order.id !== updatedOrder.id));
           } else {
-            // Update data namun pertahankan order_items yang sudah ada
             setOrders((prev) =>
               prev.map((order) => 
                 order.id === updatedOrder.id ? { ...order, ...updatedOrder } : order
@@ -91,7 +180,6 @@ export default function KitchenDashboardPage() {
       )
       .subscribe();
 
-    // Bersihkan channel saat komponen dilepas untuk menghemat memori
     return () => {
       supabase.removeChannel(channel);
     };
@@ -100,22 +188,34 @@ export default function KitchenDashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-sans">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8 border-b border-slate-200 pb-4 flex justify-between items-end">
+        <div className="mb-8 border-b border-slate-200 pb-4 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">Dashboard Dapur</h1>
             <p className="text-slate-500 mt-1">Pesanan masuk akan otomatis muncul di sini</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-            <span className="text-sm font-semibold text-slate-600">Realtime Aktif</span>
+          
+          <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 border-r border-slate-200 pr-4">
+              <div className="text-right">
+                <p className="text-sm font-bold text-slate-900">{userProfile?.nama || 'Memuat...'}</p>
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{userProfile?.role || 'User'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </span>
+              <span className="text-sm font-semibold text-slate-600">Online</span>
+            </div>
+            <button onClick={onLogout} className="ml-2 text-xs font-bold text-red-600 hover:bg-red-50 px-2 py-1 rounded transition-colors">
+              Keluar
+            </button>
           </div>
         </div>
 
         {orders.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 bg-white border border-slate-200 rounded-md">
+          <div className="flex flex-col items-center justify-center py-20 bg-white border border-slate-200 rounded-md shadow-sm">
             <p className="text-slate-500 font-medium">Belum ada pesanan yang masuk.</p>
           </div>
         ) : (
@@ -163,7 +263,7 @@ export default function KitchenDashboardPage() {
                     <p className="text-lg font-bold text-slate-900">Rp {order.total_price.toLocaleString('id-ID')}</p>
                   </div>
 
-                  {/* Tombol Aksi Kasir / Dapur */}
+                  {/* Tombol Aksi Kasir / Dapur (Khusus yang berkaitan dengan peran Manager/Karyawan jika diperlukan, saat ini sama) */}
                   <div className="flex gap-2">
                     {order.status === 'pending' && (
                       <button 
