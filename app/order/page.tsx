@@ -27,6 +27,9 @@ export default function POSPage() {
   // STEP 4: State lokal untuk menampung data keranjang
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  // Mengelola Status Order Aktif setelah checkout
+  const [activeOrder, setActiveOrder] = useState<any>(null);
+
   // STEP 5: State untuk menandai proses loading saat checkout
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
@@ -77,6 +80,32 @@ export default function POSPage() {
     };
     fetchMenus();
   }, []);
+
+  // Memonitor perubahan order secara realtime
+  useEffect(() => {
+    if (!activeOrder) return;
+
+    // Berlangganan (Subscribe) ke perubahan row spesifik milik pelanggan ini
+    const channel = supabase
+      .channel(`realtime-order-${activeOrder.id}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'orders',
+          filter: `id=eq.${activeOrder.id}` 
+        },
+        (payload) => {
+          setActiveOrder(payload.new);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeOrder?.id]);
 
   // STEP 4: Fungsi untuk menambah menu ke keranjang
   const addToCart = (menu: Menu) => {
@@ -163,9 +192,9 @@ export default function POSPage() {
         throw new Error(itemsError.message || 'Gagal menyimpan detail menu pesanan');
       }
 
-      // 4. Jika semua sukses, bersihkan keranjang dan beri notifikasi
-      alert('Berhasil! Pesanan telah dikirim ke dapur.');
+      // 4. Jika semua sukses, bersihkan keranjang dan masuk ke status pelacakan
       setCart([]);
+      setActiveOrder(orderData);
 
     } catch (error: any) {
       alert(`Terjadi kesalahan: ${error.message}`);
@@ -175,6 +204,56 @@ export default function POSPage() {
       setIsCheckingOut(false);
     }
   };
+
+  // Jika pelanggan sedang melacak pesanan (Setelah Checkout)
+  if (activeOrder) {
+    const statusMap: Record<string, string> = {
+      'pending': 'Belum Dibayar / Menunggu',
+      'preparing': 'Sedang Diproses Dapur',
+      'served': 'Siap Diambil / Selesai'
+    };
+    
+    // Status visual
+    const statusColor = 
+      activeOrder.status === 'pending' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+      activeOrder.status === 'preparing' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+      'bg-green-100 text-green-700 border-green-200';
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-8 text-center border-b border-slate-100">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-2">Status Pesanan Anda</h1>
+            <p className="text-slate-500 text-sm">Nomor Meja: <span className="font-bold text-slate-800">#{activeOrder.table_id}</span></p>
+          </div>
+          <div className="p-8 flex flex-col items-center space-y-6">
+            <div className={`px-6 py-4 rounded-lg border-2 ${statusColor} text-center w-full`}>
+              <p className="text-xs uppercase tracking-widest font-bold opacity-80 mb-1">Status Saat Ini</p>
+              <h2 className="text-xl font-black">{statusMap[activeOrder.status] || activeOrder.status}</h2>
+            </div>
+            
+            <div className="w-full text-center space-y-2">
+              <p className="text-sm text-slate-500">Order ID: <span className="font-mono">{activeOrder.id.slice(0,8)}</span></p>
+              <p className="text-sm text-slate-500">Total: <span className="font-bold text-slate-800">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span></p>
+            </div>
+
+            {activeOrder.status === 'served' && (
+              <p className="text-sm font-bold text-green-600 bg-green-50 px-4 py-3 rounded-lg border border-green-100 mt-4 text-center">
+                Minuman kamu sudah siap! Silakan ambil di konter.
+              </p>
+            )}
+
+            <button 
+              onClick={() => setActiveOrder(null)}
+              className="mt-6 w-full py-3 bg-slate-900 text-white rounded-md font-bold hover:bg-slate-800 transition-colors"
+            >
+              Order Makanan Lain
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Jika tableId belum ada, tampilkan halaman verifikasi (Scanner QR)
   if (tableId === 0) {
