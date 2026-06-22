@@ -1,246 +1,136 @@
-'use client';
-import { supabase } from "@/lib/supabase";
-import {useEffect, useState} from "react";
+import Link from 'next/link';
 
-type Menu = {
-  id: string | number;
-  name?: string;
-  description?: string;
-  price?: number;
-  image_url?: string;
-  category?: string;
-};
-
-// Tipe data untuk item di dalam keranjang (menggabungkan data menu + quantity)
-type CartItem = Menu & { 
-  quantity: number; 
-};
-
-export default function POSPage() {
-  const [menus, setMenus] = useState<Menu[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // STEP 4: State lokal untuk menampung data keranjang
-  const [cart, setCart] = useState<CartItem[]>([]);
-
-  // STEP 5: State untuk menandai proses loading saat checkout
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-
-  // Fetching data menu (Dari Step 3)
-  useEffect(() => {
-    const fetchMenus = async () => {
-      const { data, error } = await supabase
-        .from('menus')
-        .select('*')
-        .eq('is_available', true);
-      
-      if (data) setMenus(data);
-      setIsLoading(false);
-    };
-    fetchMenus();
-  }, []);
-
-  // STEP 4: Fungsi untuk menambah menu ke keranjang
-  const addToCart = (menu: Menu) => {
-    setCart((prevCart) => {
-      // Cek apakah item sudah ada di dalam keranjang
-      const isItemExist = prevCart.find((item) => item.id === menu.id);
-
-      if (isItemExist) {
-        // Jika sudah ada, naikkan jumlahnya (quantity + 1)
-        return prevCart.map((item) =>
-          item.id === menu.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      // Jika belum ada, masukkan sebagai item baru dengan quantity = 1
-      return [...prevCart, { ...menu, quantity: 1 }];
-    });
-  };
-
-  // STEP 4: Fungsi untuk mengubah jumlah item (+1 atau -1)
-  const updateQuantity = (id: string | number, delta: number) => {
-    setCart((prevCart) =>
-      prevCart
-        .map((item) => {
-          if (item.id === id) {
-            const newQuantity = item.quantity + delta;
-            return { ...item, quantity: newQuantity };
-          }
-          return item;
-        })
-        // Filter untuk menghapus item jika jumlahnya menjadi 0 atau kurang
-        .filter((item) => item.quantity > 0)
-    );
-  };
-
-  // STEP 4: Menghitung total harga secara otomatis
-  const totalPrice = cart.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
-
-  // STEP 5: Fungsi Proses Checkout
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    
-    // Kunci tombol agar kasir tidak menekan 2 kali
-    setIsCheckingOut(true); 
-
-    try {
-      // 1. Insert ke tabel 'orders' (Asumsi sementara menggunakan Meja No. 1)
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert([
-          { 
-            table_id: 1, 
-            total_price: totalPrice, 
-            status: 'pending' 
-          }
-        ])
-        .select() // Wajib ada agar Supabase mengembalikan data yang baru di-insert
-        .single(); // Ambil satu baris saja
-
-      if (orderError || !orderData) {
-        console.error("Order Insert Error:", orderError);
-        throw new Error(orderError?.message || 'Gagal membuat ID Pesanan');
-      }
-
-      // 2. Siapkan format data untuk tabel 'order_items'
-      const itemsToInsert = cart.map((item) => ({
-        order_id: orderData.id, // ID ini didapat dari langkah 1
-        menu_id: item.id,
-        quantity: item.quantity,
-      }));
-
-      // 3. Insert massal (bulk insert) ke tabel 'order_items'
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) {
-        console.error("Items Insert Error:", itemsError);
-        throw new Error(itemsError.message || 'Gagal menyimpan detail menu pesanan');
-      }
-
-      // 4. Jika semua sukses, bersihkan keranjang dan beri notifikasi
-      alert('Berhasil! Pesanan telah dikirim ke dapur.');
-      setCart([]);
-
-    } catch (error: any) {
-      alert(`Terjadi kesalahan: ${error.message}`);
-      console.error('Checkout Error:', error);
-    } finally {
-      // Buka kembali kunci tombol, terlepas sukses atau gagal
-      setIsCheckingOut(false);
-    }
-  };
-
+export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans">
-      {/* Grid Layout: Membagi layar menjadi Katalog (Kiri) dan Keranjang (Kanan) */}
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* ================= AREA KATALOG MENU (2 Kolom) ================= */}
-        <div className="lg:col-span-2">
-          <div className="mb-6 border-b border-slate-200 pb-4">
-            <h1 className="text-3xl font-bold text-slate-800">Katalog Menu</h1>
-            <p className="text-slate-500 mt-1">Klik pada menu untuk memasukkan ke keranjang</p>
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800 scroll-smooth">
+      {/* HEADER / NAVBAR */}
+      <header className="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="font-black text-2xl tracking-tighter text-slate-900">
+            CAFE<span className="text-slate-500">POS</span>
           </div>
-
-          {isLoading ? (
-            <div className="text-center py-10 text-slate-500">Memuat menu...</div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {menus.map((menu) => (
-                <div 
-                  key={menu.id} 
-                  onClick={() => addToCart(menu)} // Trigger tambah ke keranjang saat kartu di-klik
-                  className="bg-white rounded-md border border-slate-200 overflow-hidden hover:border-slate-400 active:border-blue-500 transition-colors cursor-pointer group"
-                >
-                  <div className="bg-slate-100 h-32 w-full">
-                    <img src={menu.image_url} alt={menu.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-3">
-                    <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">{menu.category}</span>
-                    <h3 className="text-base font-bold text-slate-900 truncate">{menu.name}</h3>
-                    <p className="text-slate-700 font-semibold text-sm mt-1">Rp {menu.price ? menu.price.toLocaleString('id-ID') : '0'}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <nav className="flex items-center space-x-8 text-sm font-semibold text-slate-600">
+            <a href="#our-cafe" className="hover:text-slate-900 transition-colors">Our Cafe</a>
+            <Link href="/order" className="hover:text-slate-900 transition-colors">Order</Link>
+            <a href="#location" className="hover:text-slate-900 transition-colors">Location & Review</a>
+          </nav>
         </div>
+      </header>
 
-        {/* ================= AREA KERANJANG PESANAN (1 Kolom) ================= */}
-        <div className="bg-white border border-slate-200 rounded-md p-5 h-fit sticky top-6 flex flex-col justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 border-b border-slate-200 pb-3 mb-4">
-              Keranjang Pesanan
-            </h2>
-
-            {/* Kondisi jika keranjang masih kosong */}
-            {cart.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 italic text-sm">
-                Belum ada menu yang dipilih.
-              </div>
-            ) : (
-              /* Daftar Item di Keranjang */
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                {cart.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center border border-slate-100 bg-slate-50 p-3 rounded-md">
-                    <div className="flex-1 min-w-0 pr-2">
-                      <h4 className="font-bold text-slate-800 text-sm truncate">{item.name}</h4>
-                      <p className="text-xs text-slate-500">Rp {((item.price || 0) * item.quantity).toLocaleString('id-ID')}</p>
-                    </div>
-                    
-                    {/* Tombol Pengatur Jumlah (Quantity) */}
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => updateQuantity(item.id, -1)}
-                        className="w-7 h-7 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 active:bg-slate-200 font-bold flex items-center justify-center text-xs transition-colors"
-                      >
-                        -
-                      </button>
-                      <span className="text-sm font-bold text-slate-800 w-4 text-center">{item.quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(item.id, 1)}
-                        className="w-7 h-7 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-100 active:bg-slate-200 font-bold flex items-center justify-center text-xs transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Bagian Total Harga & Tombol Aksi */}
-          <div className="mt-6 border-t border-slate-200 pt-4">
-            <div className="flex justify-between items-center text-slate-900 mb-4">
-              <span className="text-sm font-medium text-slate-500">Total Pembayaran:</span>
-              <span className="text-xl font-black">Rp {totalPrice.toLocaleString('id-ID')}</span>
-            </div>
-
-            {/* STEP 5: Sambungkan fungsi handleCheckout ke tombol ini */}
-            <button 
-              onClick={handleCheckout}
-              disabled={cart.length === 0 || isCheckingOut}
-              className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-md hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-sm text-center flex items-center justify-center"
+      <main>
+        {/* OUR CAFE SECTION */}
+        <section id="our-cafe" className="pt-24 pb-20 px-6 max-w-7xl mx-auto min-h-[80vh] flex flex-col justify-center items-center text-center">
+          <h1 className="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6 drop-shadow-sm">
+            Experience the Minimalist <br /> Coffee Culture
+          </h1>
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
+            Welcome to CAFE POS, a place where simplicity meets extraordinary taste. 
+            Enjoy our carefully curated coffee beans and calm atmosphere. Order from your table 
+            easily through our modern POS system, straight to our kitchen.
+          </p>
+          <div className="flex space-x-4">
+            <Link 
+              href="/order" 
+              className="px-8 py-4 bg-slate-900 text-white rounded-md font-bold hover:bg-slate-800 transition-colors shadow-md"
             >
-              {isCheckingOut ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Memproses...
-                </>
-              ) : (
-                'Proses Pesanan'
-              )}
-            </button>
+              Start Ordering
+            </Link>
+            <a 
+              href="#location" 
+              className="px-8 py-4 bg-white border border-slate-300 text-slate-700 rounded-md font-bold hover:bg-slate-50 transition-colors shadow-sm"
+            >
+              Find Us
+            </a>
           </div>
-        </div>
+        </section>
 
-      </div>
+        {/* DETAILS SECTION / DECORATIVE */}
+        <section className="bg-slate-100 py-16 px-6">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200 text-center">
+              <h3 className="text-xl font-bold text-slate-800 mb-3">Premium Beans</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">We source only the finest coffee beans from local farmers.</p>
+            </div>
+            <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200 text-center">
+              <h3 className="text-xl font-bold text-slate-800 mb-3">Cozy Ambiance</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">A minimalist space designed for deep focus and relaxation.</p>
+            </div>
+            <div className="bg-white p-8 rounded-lg shadow-sm border border-slate-200 text-center">
+              <h3 className="text-xl font-bold text-slate-800 mb-3">Fast Order</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">Scan, order, and pay directly from your phone. No waiting in line.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* LOCATION & REVIEW SECTION */}
+        <section id="location" className="py-24 px-6 max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Location & Reviews</h2>
+            <p className="text-slate-500 max-w-xl mx-auto">Visit us and enjoy the authentic taste of minimalist coffee. Leave us a review on Google Maps to help us grow.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center bg-white p-8 rounded-xl border border-slate-200 shadow-sm">
+            {/* Map Frame */}
+            <div className="rounded-lg overflow-hidden border border-slate-200 shadow-inner h-80 bg-slate-100">
+              <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d126907.08630048121!2d106.759477!3d-6.229728!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e945e34b9d%3A0x100c5e82dd4b820!2sJakarta%2C%20Daerah%20Khusus%20Ibukota%20Jakarta!5e0!3m2!1sid!2sid!4v1700000000000!5m2!1sid!2sid" 
+                width="100%" 
+                height="100%" 
+                style={{ border: 0 }} 
+                allowFullScreen={true} 
+                loading="lazy" 
+                referrerPolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
+
+            {/* Address & Actions */}
+            <div className="flex flex-col space-y-6">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Jakarta, Indonesia</h3>
+                <p className="text-slate-600 leading-relaxed">
+                  Jl. Sudirman No. 123, Central Jakarta<br />
+                  DKI Jakarta, 10220
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Opening Hours</p>
+                <ul className="text-slate-600 space-y-2">
+                  <li className="flex justify-between border-b border-slate-100 pb-2"><span>Monday - Friday</span> <span>08:00 AM - 10:00 PM</span></li>
+                  <li className="flex justify-between border-b border-slate-100 pb-2"><span>Saturday - Sunday</span> <span>09:00 AM - 11:00 PM</span></li>
+                </ul>
+              </div>
+
+              <div className="pt-4 flex flex-col sm:flex-row gap-4">
+                <a 
+                  href="https://maps.google.com/?q=Jakarta" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-md font-bold text-center hover:bg-blue-700 transition-colors shadow-sm flex-1"
+                >
+                  Open in Maps
+                </a>
+                <a 
+                  href="https://search.google.com/local/writereview?placeid=ChIJxWv9B--aZS4RMHwX3z7v8w" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="px-6 py-3 bg-white border border-slate-300 text-slate-700 rounded-md font-bold text-center hover:bg-slate-50 transition-colors shadow-sm flex-1"
+                >
+                  Write a Review
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="bg-slate-900 border-t border-slate-800 py-12 text-center text-slate-400">
+        <div className="max-w-7xl mx-auto px-6">
+          <p className="mb-4 text-xl font-bold text-white tracking-tighter">CAFE<span className="text-slate-500">POS</span></p>
+          <p className="text-sm">© {new Date().getFullYear()} Cafe POS System. Minimalist & Fast.</p>
+        </div>
+      </footer>
     </div>
   );
 }
