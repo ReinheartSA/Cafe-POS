@@ -175,14 +175,6 @@ export default function KitchenDashboardPage() {
                     )}
                     {order.status === 'preparing' && (
                       <button 
-                        onClick={() => updateOrderStatus(order.id, 'served')}
-                        className="flex-1 bg-green-600 text-white py-2 rounded text-sm font-bold hover:bg-green-700 transition"
-                      >
-                        Tandai Selesai
-                      </button>
-                    )}
-                    {(order.status === 'served' || order.status === 'pending') && (
-                      <button 
                         onClick={() => updateOrderStatus(order.id, 'paid')}
                         className="flex-1 bg-slate-800 text-white py-2 rounded text-sm font-bold hover:bg-slate-900 transition"
                       >

@@ -210,7 +210,7 @@ export default function POSPage() {
     const statusMap: Record<string, string> = {
       'pending': 'Belum Dibayar / Menunggu',
       'preparing': 'Sedang Diproses Dapur',
-      'served': 'Siap Diambil / Selesai'
+      'paid': 'Selesai / Sudah Dibayar'
     };
     
     // Status visual
@@ -237,7 +237,7 @@ export default function POSPage() {
               <p className="text-sm text-slate-500">Total: <span className="font-bold text-slate-800">Rp {activeOrder.total_price.toLocaleString('id-ID')}</span></p>
             </div>
 
-            {activeOrder.status === 'served' && (
+            {activeOrder.status === 'paid' && (
               <p className="text-sm font-bold text-green-600 bg-green-50 px-4 py-3 rounded-lg border border-green-100 mt-4 text-center">
                 Minuman kamu sudah siap! Silakan ambil di konter.
               </p>
